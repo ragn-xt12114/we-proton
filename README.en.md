@@ -8,6 +8,8 @@ On Linux (Wine / Proton), the WeGame client fails to download games, places wind
 
 Companion launcher: [wegame-launcher](https://github.com/SHORiN-KiWATA/wegame-launcher) installs and runs WeGame in one step.
 
+This fork additionally documents and verifies AK accelerator's mode 5 (wintun2socks) data plane; see [AK accelerator (mode 5)](#ak-accelerator-mode-5).
+
 ## About AI
 
 The patches added by this project were written and debugged with the help of AI. The symptoms, root cause and verification of each patch are documented in [`we/fixes/`](we/fixes/) (in Chinese).
@@ -21,6 +23,28 @@ The patches added by this project were written and debugged with the help of AI.
 ## Demo
 
 https://github.com/user-attachments/assets/42438b93-5a36-4557-8a0f-4b65b53d5e07
+
+## AK accelerator (mode 5)
+
+> Status: verified with `WE-Proton ge11-11-31` and `shorin-proton-wrapper`'s private network namespace (2026-11-13).
+
+AK's mode 5 uses wintun2socks: it creates an `ak_wintunocks` TUN inside the prefix's private netns and relays game traffic through AK nodes. Requirements:
+
+1. Install `passt` (for example `sudo apt install passt` or `sudo pacman -S passt`).
+2. Enable the prefix's private network with `shorin-proton-wrapper --netns on` (skip if already enabled; this is a configuration step, not a per-run flag).
+3. Start Steam and the AK client (`AK.exe` from AKPlatform) in the same wrapper session; both must share the same netns.
+4. If you use an AK-side Wine compatibility solution, apply its patches only after AK's self-check finishes (the log shows `客户端文件检测完成`); the self-check restores files under `core/`.
+5. Select mode 5 in AK, accelerate, then launch the game through Steam (for example `steam -applaunch 3527290`).
+
+Verification: PEAK (AppID 3527290) reached the online world with pure Wine mode 5, node 8166(8295);
+no disconnect for about 7 minutes. TUN captured 21,824 UDP packets; the node side showed 21,807 A5 5A frames (approximately 1:1).
+
+Known limitations:
+
+- Under Wine, AK first tries mode 4, fails, then automatically falls back to mode 5; this is expected.
+- Wine's built-in wintun read path and `GetOwnerModuleFromUdpEntry` do not fully match AK's expectations. This repository only provides the Wine/Proton runtime; the AK-side Wine compatibility work is provided by the AK-side solution and is not included here.
+- The verified game data plane used Photon UDP (5058/5055/5056); the TCP relay path was not exercised in this run and needs separate verification for TCP/WSS scenarios.
+- An accelerator only changes the network path and does not change this project's position on competitive games or anti-cheat; accelerator nodes, accounts and game compliance are the user's responsibility.
 
 ## Installation
 

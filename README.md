@@ -8,6 +8,8 @@ WeGame 客户端在 Linux（Wine / Proton）上会出现无法正常下载游戏
 
 配套的启动器：[wegame-launcher](https://github.com/SHORiN-KiWATA/wegame-launcher)，一键安装和运行 WeGame。
 
+本 fork 额外验证了 AK 加速器的模式五（wintun2socks）数据面，使用说明见 [AK 加速器（模式五）](#ak-加速器模式五)。
+
 ## 关于 AI
 
 本项目新增的补丁是在 AI 辅助下编写和调试的，每个补丁的现象、根因和验证过程都写在 [`we/fixes/`](we/fixes/) 里。
@@ -32,6 +34,7 @@ https://github.com/user-attachments/assets/42438b93-5a36-4557-8a0f-4b65b53d5e07
 | :--------------------: | :------: | :--------------------------------------------------------------------------------------------------------------------: |
 |       雷神加速器       |    ✅     | 不是广告。安装`passt`这个包后在`wegame-launcher`设置里开启`独立网络命名空间`，加速时选择`模式三`的节点就可以正常加速。 |
 |      网易UU加速器      |    ✅     |                                同雷神加速器，加速时选择`路由模式`的节点就可以正常加速。                                |
+|        AK加速器        |    ✅     | 开启独立网络命名空间，使用`模式五`节点；需 AK 侧兼容方案（见下文），已在 PEAK 上验证进入在线世界。 |
 |       王者万象棋       |    ✅     |                                                                                                                        |
 |      王者荣耀世界      |    ✅     |                                                                                                                        |
 |         三国杀         |    ✅     |                                                                                                                        |
@@ -58,6 +61,28 @@ https://github.com/user-attachments/assets/42438b93-5a36-4557-8a0f-4b65b53d5e07
 |     和平精英模拟器     |    ⚠️     |                                                        数据异常                                                        |
 | 使命召唤手游高清模拟器 |    ❌     |                                              无法加载 ACE 需要的驱动程序                                               |
 |       逆战：未来       |    ❌     |                                              无法加载 ACE 需要的驱动程序                                               |
+
+## AK 加速器（模式五）
+
+> 状态：已在 `WE-Proton ge11-11-31` + `shorin-proton-wrapper` 的独立网络命名空间下验证（2026-11-13）。
+
+AK 加速器的模式五使用 wintun2socks：在前缀的私有 netns 里创建 `ak_wintunocks` TUN，游戏流量经 AK 节点转发。使用要点：
+
+1. 安装 `passt`（例如 `sudo apt install passt` 或 `sudo pacman -S passt`）。
+2. 用 `shorin-proton-wrapper --netns on` 给前缀开启独立网络（已开启则跳过；这是配置动作，不是每次启动参数）。
+3. 在同一个 wrapper 会话里先启动 Steam，再启动 AK 客户端（AKPlatform 的 `AK.exe`），两者必须处于同一 netns。
+4. 若使用 AK 侧的 Wine 兼容方案，需等 AK 自检（日志出现 `客户端文件检测完成`）结束后再应用其补丁；AK 自检会还原 `core` 下的文件。
+5. 在 AK 界面选择模式五并加速，然后用 Steam 启动游戏（例如 `steam -applaunch 3527290`）。
+
+验证记录：PEAK（AppID 3527290）在纯 Wine 模式五下进入在线世界，节点 8166(8295)；
+入世界后约 7 分钟 0 断线。TUN 抓包 UDP 21,824 包，节点侧 A5 5A 帧 21,807，基本 1:1。
+
+已知限制：
+
+- Wine 下 AK 会先尝试模式四并失败，随后自动回退模式五，属正常路径。
+- Wine 内置 wintun 的读路径和 `GetOwnerModuleFromUdpEntry` 与 AK 的预期不完全一致；本仓库只提供 Wine/Proton 侧运行环境，AK 客户端需要的 Wine 兼容处理由 AK 侧方案提供，未包含在本仓库。
+- 本次验证的游戏数据面为 Photon UDP（5058/5055/5056）；TCP relay 路径未在本次触发，TCP/WSS 场景仍需单独验证。
+- 加速器只改变网络路径，不改变本项目对竞技游戏和反作弊的立场；节点、账号和游戏合规性由使用者自行负责。
 
 ## 安装
 
